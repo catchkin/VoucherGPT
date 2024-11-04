@@ -9,5 +9,5 @@ class Document(Base):
     name = Column(String)
     document_type = Column(String)  # 'reference', 'sample', 'plan'
     content = Column(Text)
-    metadata = Column(JSON)
+    file_metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

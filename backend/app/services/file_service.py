@@ -22,7 +22,7 @@ class FileService:
             name=file.filename,
             document_type='reference',
             content=text_content,
-            metadata={'content_type': file.content_type}
+            file_metadata={'content_type': file.content_type}
         )
 
         self.db.add(doc)
