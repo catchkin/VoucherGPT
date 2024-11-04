@@ -1,4 +1,5 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from functools import lru_cache
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "VoucherGPT"
@@ -9,4 +10,8 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
-settings = Settings()
+@lru_cache()
+def get_settings():
+    return Settings()
+
+settings = get_settings()
