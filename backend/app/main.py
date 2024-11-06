@@ -1,10 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import plan
-from .database import engine, Base
-
-# 데이터베이스 테이블 생성
-Base.metadata.create_all(bind=engine)
+from .api import company, plan
 
 app = FastAPI(title="VoucherGPT")
 
@@ -18,4 +14,5 @@ app.add_middleware(
 )
 
 # 라우터 등록
-app.include_router(plan.router, prefix="/api/plan", tags=["plan"])
+app.include_router(company.router, prefix="/api/companies", tags=["companies"])
+app.include_router(plan.router, prefix="/api/plans", tags=["plans"])
