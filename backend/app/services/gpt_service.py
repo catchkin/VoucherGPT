@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..config import settings
+from backend.app.core.config import settings
 
 class GPTService:
     def __init__(self):

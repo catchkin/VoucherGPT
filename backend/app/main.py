@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import company, plan
+from app.api import company_router
 
 app = FastAPI(title="VoucherGPT")
 
@@ -14,5 +14,4 @@ app.add_middleware(
 )
 
 # 라우터 등록
-app.include_router(company.router, prefix="/api/companies", tags=["companies"])
-app.include_router(plan.router, prefix="/api/plans", tags=["plans"])
+app.include_router(company_router, prefix="/api/companies", tags=["companies"])

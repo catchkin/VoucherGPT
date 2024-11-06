@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from ..database import Base
+from backend.app.core.database import Base
 
 class BusinessPlan(Base):
     __tablename__ = "business_plans"

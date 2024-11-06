@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Text
 from sqlalchemy.sql import func
-from ..database import Base
+from backend.app.core.database import Base
 
 class Document(Base):
     __tablename__ = "documents"
