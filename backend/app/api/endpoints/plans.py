@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from backend.app.core.database import get_db
-from ..models.plan import BusinessPlan
-from ..models.document import Document
-from ..services.gpt_service import GPTService
+from backend.app.models.plan import BusinessPlan
+from backend.app.models.document import Document
+from backend.app.services.gpt_service import GPTService
 from pydantic import BaseModel
 
 router = APIRouter()
