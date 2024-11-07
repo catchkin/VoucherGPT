@@ -1,0 +1,20 @@
+# Import production dependencies
+-r requirements.txt
+
+# Development Tools
+black==23.12.1                # 코드 포매팅
+isort==5.13.2                 # import 문 정렬
+flake8==7.0.0                 # 코드 린팅
+mypy==1.8.0                   # 타입 체크
+
+# Testing
+pytest-cov==4.1.0             # 테스트 커버리지
+pytest-watch==4.2.0           # 자동 테스트 실행
+faker==22.0.0                 # 테스트 데이터 생성
+
+# Debugging
+ipython==8.19.0               # 향상된 Python 셸
+debugpy==1.8.0                # 디버깅 도구
+
+# Documentation
+sphinx==7.1.2                 # 문서 생성
