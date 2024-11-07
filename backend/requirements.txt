@@ -1,37 +1,37 @@
 # Core
-fastapi==0.108.0                # FastAPI 프레임워크
-uvicorn==0.25.0                # ASGI 서버
-python-multipart==0.0.6         # 파일 업로드 처리
-python-dotenv==1.0.0            # 환경변수 관리
+fastapi==0.108.0
+uvicorn==0.25.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
 
 # Database
-sqlalchemy==2.0.25              # ORM
-alembic==1.13.1                # DB 마이그레이션
-psycopg2-binary==2.9.9         # PostgreSQL 드라이버
-asyncpg==0.29.0                # PostgreSQL 비동기 드라이버
+sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
 
 # File Processing
-python-magic==0.4.27           # 파일 타입 확인
-aiofiles==23.2.1               # 비동기 파일 처리
-pypdf==3.17.4                  # PDF 파일 처리
-python-docx==1.1.0             # Word 문서 처리
-openpyxl==3.1.2                # Excel 파일 처리
+python-magic==0.4.27
+aiofiles==23.2.1
+pypdf==3.17.4
+python-docx==1.1.0
+openpyxl==3.1.2
 
 # LLM
-openai==1.6.1                  # OpenAI GPT API
-tiktoken==0.5.2                # OpenAI 토큰 카운터
+openai==1.6.1
+tiktoken==0.5.2
 
 # Validation
-pydantic==2.5.3                # 데이터 검증
-pydantic-settings==2.1.0       # 설정 관리
-email-validator==2.1.0.post1   # 이메일 검증
+pydantic==2.6.1
+pydantic-settings==2.1.0
+email-validator==2.1.0.post1
 
 # Utilities
-python-slugify==8.0.1          # 문자열 슬러그화
-pytz==2023.3.post1             # 시간대 처리
-loguru==0.7.2                  # 로깅
+python-slugify==8.0.1
+pytz==2023.3.post1
+loguru==0.7.2
 
-# Testing (개발 환경)
+# Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3
 httpx==0.26.0

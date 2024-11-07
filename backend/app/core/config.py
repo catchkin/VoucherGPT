@@ -1,17 +1,20 @@
+# app/core/config.py
 from pydantic_settings import BaseSettings
-from functools import lru_cache
+from dotenv import load_dotenv
+import os
+
+# .env 파일 로드
+load_dotenv()
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "VoucherGPT"
-    DATABASE_URL: str
-    OPENAI_API_KEY: str
-    MODEL_NAME: str = "gpt-4"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://vouchergpt_user:blogcodi0318@localhost:5432/vouchergpt"
+    )
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
 
-@lru_cache()
-def get_settings():
-    return Settings()
-
-settings = get_settings()
+# 설정 인스턴스 생성
+settings = Settings()
