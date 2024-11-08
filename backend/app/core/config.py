@@ -1,20 +1,49 @@
-# app/core/config.py
-from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
-import os
-
-# .env 파일 로드
-load_dotenv()
+from typing import Any, Dict, Optional
+from pydantic import (
+    BaseSettings,
+    PostgreDsn,
+    validator,
+    DirectoryPath
+)
+from pathlib import Path
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://vouchergpt_user:blogcodi0318@localhost:5432/vouchergpt"
-    )
+    APP_NAME: str
+    DEBUG: bool = False
+    API_V1_STR: str = "/api/v1"
+
+    # JWT Token settings
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Database
+    DATABASE_URL: PostgreDsn
+    ASYNC_DATABASE_URL: Optional[str] = None
+
+    @validator("ASYNC_DATABASE_URL", pre=True)
+    def assemble_async_db_url(cls, v: Optional[str], values: Dict[str, Any]) -> str:
+        if v:
+            return v
+        db_url = values.get("DATABASE_URL")
+        return str(db_url).replace("postgresql://", "postgresql+asyncpg://") if db_url else None
+
+    # OpenAI
+    OpenAI_API_KEY: str
+    GPT_MODE: str = "gpt-4-1106-preview"
+
+    # File Upload
+    UPLOAD_DIR:  DirectoryPath
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
+
+    @validator("UPLOAD_DIR", pre=True)
+    def create_upload_dir(cls, v: str) -> Path:
+        path = Path(v)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     class Config:
         env_file = ".env"
-        env_file_encoding = "utf-8"
+        case_sensitive = True
 
-# 설정 인스턴스 생성
 settings = Settings()
