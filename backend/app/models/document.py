@@ -1,28 +1,32 @@
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from app.core.database import Base
 import enum
+from .base import Base
 
-class DocumentStatus(str, enum.Enum):
-    DRAFT = "draft"
-    IN_REVIEW = "in_review"
-    COMPLETED = "completed"
-    ARCHIVED = "archived"
+class DocumentType(enum.Enum):
+    BUSINESS_PLAN = "business_plan"
+    COMPANY_PROFILE = "company_profile"
+    FINANCIAL_REPORT = "financial_report"
+    TRAINING_DATA = "training_data"
+    OTHER = "other"
 
 class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
-    description = Column(Text)
-    status = Column(Enum(DocumentStatus), default=DocumentStatus.DRAFT)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"))
-    template_id = Column(Integer, ForeignKey("templates.id"))
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime, onupdate=func.now())
+    title = Column(String(255), nullable=False)
+    type = Column(Enum(DocumentType), nullable=False)
+    content = Column(Text)
+    file_path = Column(String(512))
+    file_name = Column(String(255))
+    mime_type = Column(String(100))
 
-    # 관계 설정
+    # Foreign keys
+    company_id = Column(Integer, ForeignKey("companies.id"))
+
+    # Relationships
     company = relationship("Company", back_populates="documents")
-    template = relationship("Template", back_populates="documents")
-    sections = relationship("DocumentSection", back_populates="document", cascade="all, delete-orphan")
+    sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Document(title={self.title}, type={self.type.value})>"
