@@ -1,84 +1,90 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.openapi.utils import status_code_ranges
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud, schemas
-from app.api import deps
-
-from apitest1 import response
+from app.api.deps import get_db, handle_exceptions
+from app.crud import crud_company
+from app.schemas import CompanyCreate, CompanyUpdate, Company, CompanyWithRelations
 
 router = APIRouter()
 
-@router.post("/", response_mode=schemas.Company)
-def create_company(
-    *,
-    db: Session = Depends(deps.get_db),
-    company_in: schemas.CompanyCreate,
-) -> Any:
-    """
-    새로운 기업 생성
-    """
-    company = crud.company.get_by_business_number(db, business_number=company_in.business_number)
-    if company:
-        raise HTTPException(
-            status_code=400,
-            detail="The company with this business number already exists in the system.",
-        )
-    company = crud.company.create(db, obj_in=company_in)
-    return company
+@router.post("/", response_model=Company, status_code=status.HTTP_201_CREATED)
+@handle_exceptions()
+async def create_company(
+    company_in: CompanyCreate,
+    db: AsyncSession = Depends(get_db)
+) -> Company:
+    """새로운 회사 생성"""
+    return await crud_company.create(db, obj_in=company_in)
 
-@router.get("/", response_model=List[schemas.Company])
-def read_companies(
-    db: Session = Depends(deps.get_db),
+@router.get("/", response_model=List[Company])
+@handle_exceptions()
+async def list_companies(
     skip: int = 0,
     limit: int = 100,
-) -> Any:
-    """
-    기업 목록 조회
-    """
-    companies = crud.company.get_multi(db, skip=skip, limit=limit)
-    return companies
+    db: AsyncSession = Depends(get_db)
+) -> List[Company]:
+    """회사 목록 조회"""
+    return await crud_company.get_multi(db, skip=skip, limit=limit)
 
-@router.get("/{company_id}", response_model=schemas.Company)
-def read_company(
+@router.get("/{company_id}", response_model=Company)
+@handle_exceptions()
+async def get_company(
     company_id: int,
-    db: Session = Depends(deps.get_db),
-) -> Any:
-    """
-    기업 정보 조회
-    """
-    company = crud.company.get(db, id=company_id)
+    db: AsyncSession = Depends(get_db)
+) -> Company:
+    """특정 회사 조회"""
+    company = await crud_company.get(db, id=company_id)
     if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
     return company
 
-@router.put("/{company_id}", response_model=schemas.Company)
-def update_company(
-    *,
-    db: Session = Depends(deps.get_db),
+@router.get("/{company_id}/full", response_model=CompanyWithRelations)
+@handle_exceptions()
+async def get_company_with_relations(
     company_id: int,
-    company_in: schemas.CompanyUpdate,
-) -> Any:
-    """
-    기업 정보 수정
-    """
-    company = crud.company.get(db, id=company_id)
+    db: AsyncSession = Depends(get_db)
+) -> CompanyWithRelations:
+    """회사 정보를 관련 문서들과 함께 조회"""
+    company = await crud_company.get_with_relations(db, id=company_id)
     if not company:
-        raise HTTPException(status_code=404, detail="Company not foudn")
-    company = crud.company.update(db, db_obj=company, obj_in=company_in)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
     return company
 
-@router.delete("/{company_id}", response_model=schemas.Company)
-def delete_company(
-    *,
-    db: Session = Depends(deps.get_db),
+@router.put("/{company_id}", response_model=Company)
+@handle_exceptions()
+async def update_company(
     company_id: int,
-) -> Any:
-    """
-    기업 삭제
-    """
-    company = crud.company.get(db, id=company_id)
+    company_in: CompanyUpdate,
+    db: AsyncSession = Depends(get_db)
+) -> Company:
+    """회사 정보 수정"""
+    company = await crud_company.get(db, id=company_id)
     if not company:
-        raise HTTPException(status_code=404, detail="Companies not found")
-    company = crud.company.remove(db, id=company_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    return await crud_company.update(db, db_obj=company, obj_in=company_in)
+
+@router.delete("/{company_id}", response_model=Company)
+@handle_exceptions()
+async def delete_company(
+    company_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> Company:
+    """회사 삭제"""
+    company = await crud_company.remove(db, id=company_id)
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
     return company
