@@ -20,7 +20,7 @@ class Section(Base):
     title = Column(String(255), nullable=False)
     content = Column(Text)
     order = Column(Integer, default=0)
-    metadata = Column(JSON)
+    meta_data = Column(JSON)
 
     # Foreign keys
     document_id = Column(Integer, ForeignKey("documents.id"))
