@@ -1,54 +1,41 @@
-from sqlalchemy.orm import Session
-from fastapi.encoders import jsonable_encoder
 from typing import List, Optional
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.company import Company
 from app.schemas.company import CompanyCreate, CompanyUpdate
+from .base import CRUDBase
 
-class CompanyCRUD:
-    def create(self, db: Session, *, obj_in: CompanyCreate) -> Company:
-        obj_in_data = jsonable_encoder(obj_in)
-        db_obj = Company(**obj_in_data)
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+class CRUDCompany(CRUDBase[Company, CompanyCreate, CompanyUpdate]):
+    async def get_by_business_number(self, db: AsyncSession, *, business_number: str) -> Optional[Company]:
+        """Get a company by business registration number."""
+        query = select(self.model).where(self.model.business_number == business_number)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
-    def get(self, db: Session, id: int) -> Optional[Company]:
-        return db.query(Company).filter(Company.id == id).first()
+    async def get_with_relations(self, db: AsyncSession, *, id: int) -> Optional[Company]:
+        """Get a company with related documents and sections."""
+        query = (
+            select(self.model)
+            .options(selectinload(self.model.documents))
+            .where(self.model.id == id)
+        )
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
-    def get_by_business_number(self, db: Session, business_number: str) -> Optional[Company]:
-        return db.query(Company).filter(Company.business_number == business_number).first()
-
-    def get_multi(
-        self, db: Session, *, skip: int = 0, limit = 100
+    async def get_active(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[Company]:
-        return db.query(Company).offset(skip).limit(limit).all()
+        """Get active companies with pagination."""
+        query = (
+            select(self.model)
+            .where(self.model.is_active == True)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return result.scalars().all()
 
-    def update(
-        self,
-        db: Session,
-        *,
-        db_obj: Company,
-        obj_in: CompanyUpdate
-    ) -> Company:
-        obj_data = jsonable_encoder(db_obj)
-        if isinstance(obj_in, dict):
-            update_data = obj_in
-        else:
-            update_data = obj_in.dict(exclude_unset=True)
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
-
-    def remove(self, db: Session, *, id: int) -> Company:
-        obj = db.query(Company).get(id)
-        db.delete(obj)
-        db.commit()
-        return obj
-
-company = CompanyCRUD()
+# Create crud_company instance
+company = CRUDCompany(Company)
