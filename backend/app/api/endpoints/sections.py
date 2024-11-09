@@ -74,7 +74,7 @@ async def delete_section(
         )
     return section
 
-@router.pub("/document/{document_id}/reorder", response_model=List[Section])
+@router.put("/document/{document_id}/reorder", response_model=List[Section])
 @handle_exceptions()
 async def reorder_sections(
     document_id: int,

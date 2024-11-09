@@ -1,7 +1,10 @@
-from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
+from pydantic import Field, model_validator, ConfigDict
 from .base import BaseSchema, BaseResponseSchema
+
+if TYPE_CHECKING:
+    from .document import Document
 
 class CompanyBase(BaseSchema):
     """Base schema for Company"""
@@ -30,15 +33,13 @@ class CompanyUpdate(CompanyBase):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     is_active: Optional[bool] = None
 
-class CompanyInDBBase(CompanyBase, BaseResponseSchema):
-    """Base schema for Company in DB (includes ID and timestamps)"""
-    pass
-
-class Company(CompanyInDBBase):
+class Company(CompanyBase, BaseResponseSchema):
     """Schema for returning Company data"""
-    pass
+    model_config = ConfigDict(from_attributes=True)
 
 class CompanyWithRelations(Company):
     """Schema for returning Company with related data"""
-    from .document import Document  # Avoid circular import
-    documents: list['Document'] = []
+    documents: List["Document"] = Field(default_factory=list)
+
+from .document import Document
+CompanyWithRelations.model_rebuild()

@@ -1,44 +1,34 @@
 from .base import BaseSchema, TimestampSchema, BaseResponseSchema
-from .company import (
-    Company,
-    CompanyCreate,
-    CompanyUpdate,
-    CompanyInDBBase,
-    CompanyWithRelations
-)
+from .section import Section, SectionCreate, SectionUpdate, SectionType
 from .document import (
     Document,
     DocumentCreate,
     DocumentUpdate,
-    DocumentInDBBase,
-    DocumentWithSections,
-    DocumentType
+    DocumentType,
+    DocumentWithSections
 )
-from .section import (
-    Section,
-    SectionCreate,
-    SectionUpdate,
-    SectionInDBBase,
-    SectionType
+from .company import (
+    Company,
+    CompanyCreate,
+    CompanyUpdate,
+    CompanyWithRelations
 )
 
 __all__ = [
     "BaseSchema",
     "TimestampSchema",
     "BaseResponseSchema",
-    "Company",
-    "CompanyCreate",
-    "CompanyInDBBase",
-    "CompanyWithRelations",
-    "Document",
-    "DocumentCreate",
-    "DocumentUpdate",
-    "DocumentInDBBase",
-    "DocumentWithSections",
-    "DocumentType",
     "Section",
     "SectionCreate",
     "SectionUpdate",
-    "SectionInDBBase",
-    "SectionType"
+    "SectionType",
+    "Document",
+    "DocumentCreate",
+    "DocumentUpdate",
+    "DocumentType",
+    "DocumentWithSections",
+    "Company",
+    "CompanyCreate",
+    "CompanyUpdate",
+    "CompanyWithRelations"
 ]

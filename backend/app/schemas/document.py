@@ -1,7 +1,10 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING, Annotated
 from enum import Enum
-from pydantic import Field, field_validator
+from pydantic import Field, ConfigDict
 from .base import BaseSchema, BaseResponseSchema
+
+if TYPE_CHECKING:
+    from .section import Section
 
 class DocumentType(str, Enum):
     BUSINESS_PLAN = "business_plan"
@@ -22,35 +25,22 @@ class DocumentBase(BaseSchema):
 
 class DocumentCreate(DocumentBase):
     """Schema for creating a new document"""
-    @field_validator('mime_type')
-    def validate_mime_type(cls, v: Optional[str]) -> Optional[str]:
-        if v:
-            allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'text/plain'
-            ]
-            if v not in allowed_types:
-                raise ValueError(f"Unsupported mime type. Allowed types: {allowed_types}")
-        return v
+    pass
 
 class DocumentUpdate(DocumentBase):
     """Schema for updating a document"""
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     type: Optional[DocumentType] = None
     content: Optional[str] = None
-    company_id = Optional[int] = None
+    company_id: Optional[int] = None
 
-class DocumentInDBBase(DocumentBase, BaseResponseSchema):
-    """Base schema for Document in DB"""
-    pass
-
-class Document(DocumentInDBBase):
+class Document(DocumentBase, BaseResponseSchema):
     """Schema for returning Document data"""
-    pass
+    model_config = ConfigDict(from_attributes=True)
 
 class DocumentWithSections(Document):
-    """Schema for returning Document with sections"""
-    from .section import Section # Avoid circular import
-    sections: List['Section'] = []
+    """Schema for returning Document with related data"""
+    sections: List["Section"] = Field(default_factory=list)
+
+from .section import Section
+DocumentWithSections.model_rebuild()

@@ -34,10 +34,6 @@ class SectionUpdate(SectionBase):
     order: Optional[int] = Field(None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
 
-class SectionInDBBase(SectionBase, BaseResponseSchema):
-    """Base schema for Section in DB"""
-    pass
-
-class Section(SectionInDBBase):
-    """Schema for running Section data"""
+class Section(SectionBase, BaseResponseSchema):
+    """Schema for returning Section data"""
     pass
