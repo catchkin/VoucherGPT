@@ -1,5 +1,5 @@
 from idlelib.iomenu import encoding
-from typing import TypeDict, List, Optional, Dict, Any
+from typing import TypedDict, List, Optional, Dict, Any
 import os
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
