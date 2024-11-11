@@ -4,6 +4,7 @@ from pydantic import  BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.models.base import Base
 
@@ -23,9 +24,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     async def get(self, db: AsyncSession, id: Any) -> Optional[ModelType]:
         """Get a record by ID."""
-        query = select(self.model).where(self.model.id == id)
-        result = await db.execute(query)
-        return result.scalar_one_or_none()
+        try:
+            query = select(self.model).where(self.model.id == id)
+            result = await db.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"Error in get method: {str(e)}")
+            return None
 
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
