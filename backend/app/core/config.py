@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import (
     field_validator,
@@ -18,10 +18,18 @@ class Settings(BaseSettings):
     )
 
     # Application Settings
-    APP_NAME: str
+    APP_NAME: str = "VoucherGPT"
     DEBUG: bool = False
     API_V1_STR: str = "/api/v1"
     SERVER_HOST: AnyHttpUrl = "http://localhost:8000"
+
+    # CORS Settings
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",  # React frontend
+        "http://localhost:8000",  # FastAPI backend
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ]
 
     # JWT Settings
     SECRET_KEY: str
@@ -39,8 +47,11 @@ class Settings(BaseSettings):
     # File Upload Settings
     UPLOAD_DIR: DirectoryPath
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB in bytes
-    ALLOWED_MIME_TYPES: list[str] = ["application/pdf", "application/msword",
-                                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+    ALLOWED_MIME_TYPES: list[str] = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ]
 
     @field_validator("DATABASE_URL")
     def validate_database_url(cls, v: str) -> str:

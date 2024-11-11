@@ -12,7 +12,6 @@ from functools import partial
 import json
 from openai import AsyncOpenAI
 
-from app.api.endpoints.documents import process_document
 from app.core.config import settings
 from app.crud import crud_document, crud_section, crud_company
 from app.models.document import DocumentType
@@ -20,12 +19,11 @@ from app.models.section import SectionType
 from app.schemas.document import DocumentCreate, Document
 from app.schemas.section import SectionCreate
 
-class SectionData(TypeDict):
+class SectionData(TypedDict):
     type: SectionType
     title: str
     content: str
     order: int
-
 
 class DocumentService:
     def __init__(self):
@@ -36,6 +34,7 @@ class DocumentService:
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
             'text/plain': 'txt'
         }
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def _extract_from_pdf(self, file_path: str) -> str:
         """
@@ -447,7 +446,6 @@ class DocumentService:
             # 이미 처리된 HTTP 예외는 그대로 전달
             raise
         except Exception as e:
-            # 예상치 못한 오류 처리
             if 'file_path' in locals() and os.path.exists(file_path):
                 os.remove(file_path)
             raise HTTPException(

@@ -1,43 +1,74 @@
-import asyncio
+# tests/conftest.py
 import pytest
-from typing import AsyncGenerator, Generator
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+import asyncio
+from typing import AsyncGenerator
+import os
+from dotenv import load_dotenv
 
+from app.main import app
 from app.core.config import settings
 from app.core.database import Base
-from app.main import app
 from app.api.deps import get_db
 
-# Test database URL
-TEST_DATABASE_URL = "postgresql://vouchergpt_user:blogcodi0318@localhost:5432/vouchergpt"
+# 환경변수 로드
+load_dotenv()
 
-# Create async engine for tests
+# 테스트 데이터베이스 URL 설정
+DB_USER = os.getenv("DB_USER", "vouchergpt_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "blogcodi0318")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = "vouchergpt_test"
+
+TEST_DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# 테스트용 엔진 설정
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
-    poolclass=StaticPool,
-    echo=False
+    echo=False,
+    future=True,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
 )
 
-# Test async session
+# 테스트용 세션 팩토리
 TestingSessionLocal = sessionmaker(
     test_engine,
     class_=AsyncSession,
     expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
 )
 
+
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
+def event_loop():
     """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
+
 @pytest.fixture(scope="session")
+async def test_engine_fixture():
+    """Create test engine fixture."""
+    yield test_engine
+    await test_engine.dispose()
+
+
+@pytest.fixture
 async def test_db():
-    """Create test database tables."""
+    """Create test database."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -45,19 +76,27 @@ async def test_db():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
-@pytest.fixture
-async def db_session(test_db) -> AsyncGenerator[AsyncSession, None]:
-    """Get async database session."""
-    async with TestingSessionLocal() as session:
-        yield session
 
 @pytest.fixture
-async def client(db_session) -> Generator:
-    """Create test client."""
+async def session(test_db) -> AsyncGenerator[AsyncSession, None]:
+    """Get test database session."""
+    async with TestingSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+@pytest.fixture
+async def client(session: AsyncSession):
+    """Create test client with database session override."""
     async def override_get_db():
-        yield db_session
+        try:
+            yield session
+        finally:
+            await session.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
+    async with AsyncClient(app=app, base_url="http://localhost:8000") as ac:
+        yield ac
     app.dependency_overrides.clear()
