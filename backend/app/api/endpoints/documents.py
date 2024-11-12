@@ -2,6 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+import traceback
 
 from app.api.deps import get_db, handle_exceptions
 from app.crud import crud_document
@@ -16,6 +17,25 @@ from app.schemas import (
 from app.services.document_service import document_service
 
 router = APIRouter()
+
+@router.post("/", response_model=Document, status_code=status.HTTP_201_CREATED)
+@handle_exceptions()
+async def create_document(
+    document_in: DocumentCreate,
+    db: AsyncSession = Depends(get_db)
+) -> Document:
+    """문서 메타데이터 생성"""
+    try:
+        document = await crud_document.create(db, obj_in=document_in)
+        return document
+    except Exception as e:
+        print(f"Error creating document: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating document: {str(e)}"
+        )
+
 
 @router.get("/", response_model=List[Document])
 @handle_exceptions()
@@ -77,15 +97,6 @@ async def get_document_with_sections(
             detail="Document not found"
         )
     return document
-
-@router.post("/", response_model=Document, status_code=status.HTTP_201_CREATED)
-@handle_exceptions()
-async def create_document(
-    document_in: DocumentCreate,
-    db: AsyncSession = Depends(get_db)
-) -> Document:
-    """문서 메타데이터 생성"""
-    return await crud_document.create(db, obj_in=document_in)
 
 @router.post("/upload", response_model=DocumentWithSections)
 @handle_exceptions()

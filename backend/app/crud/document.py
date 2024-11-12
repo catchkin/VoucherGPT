@@ -3,11 +3,37 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.document import Document
+from app.models.document import Document, DocumentType
 from app.schemas.document import DocumentCreate, DocumentUpdate
 from .base import CRUDBase
 
 class CRUDDocument(CRUDBase[Document, DocumentCreate, DocumentUpdate]):
+    async def create(self, db: AsyncSession, *, obj_in: DocumentCreate) -> Document:
+        """Create new document with error logging"""
+        try:
+            # Model 인스턴스 생성
+            db_obj = Document(
+                title=obj_in.title,
+                type=obj_in.type,
+                content=obj_in.content,
+                file_path=obj_in.file_path,
+                file_name=obj_in.file_name,
+                mime_type=obj_in.mime_type,
+                company_id=obj_in.company_id
+            )
+
+            print(f"\nCreating document with data: {obj_in.model_dump()}")
+            print(f"Created db object: {db_obj.__dict__}")
+
+            db.add(db_obj)
+            await db.commit()
+            await db.refresh(db_obj)
+            return db_obj
+        except Exception as e:
+            await db.rollback()
+            print(f"\nError in document creation: {str(e)}")
+            raise
+
     async def get_by_company(
         self, db: AsyncSession, *, company_id: int, skip: int = 0, limit: int = 100
     ) -> List[Document]:
