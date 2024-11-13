@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import traceback
+import os
 
 from app.api.deps import get_db, handle_exceptions
 from app.crud import crud_document
@@ -150,13 +151,8 @@ async def delete_document(
     db: AsyncSession = Depends(get_db)
 ) -> Document:
     """문서 삭제"""
-    document = await crud_document.remove(db, id=document_id)
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-    raise document
+    return await crud_document.remove(db, id=document_id)
+
 
 @router.post("/template/{template_id}/generate", response_model=DocumentWithSections)
 @handle_exceptions()

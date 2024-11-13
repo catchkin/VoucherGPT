@@ -77,7 +77,9 @@ async def test_db():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+
     yield
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -109,7 +111,19 @@ async def client(session: AsyncSession):
         yield ac
     app.dependency_overrides.clear()
 
+@pytest.fixture
+def test_upload_dir():
+    """Create and clean up test upload directory."""
+    test_dir = "test_uploads"
+    os.makedirs(test_dir, exist_ok=True)
+    yield test_dir
+    # Clean up
+    for file in os.listdir(test_dir):
+        os.remove(os.path.join(test_dir, file))
+    os.rmdir(test_dir)
+
 # Document Test Fixtures
+@pytest.fixture
 async def create_company(session: AsyncSession) -> Company:
     """Create test company"""
     company_data = {
@@ -128,12 +142,13 @@ async def create_company(session: AsyncSession) -> Company:
     return company
 
 @pytest.fixture
-async def create_document(session: AsyncSession) -> Document:
+async def create_document(session: AsyncSession, create_company: Company) -> Document:
     """Create test document"""
     document = Document(
         title="Test Document",
         type=DocumentType.BUSINESS_PLAN,
-        content="Test content"
+        content="Test content",
+        company_id=create_company.id  # company_id 추가
     )
     session.add(document)
     await session.commit()
@@ -141,6 +156,105 @@ async def create_document(session: AsyncSession) -> Document:
     return document
 
 
+@pytest.fixture
+async def create_multiple_documents(session: AsyncSession, create_company: Company) -> list[Document]:
+    """Create multiple test documents."""
+    documents = []
+    for i in range(3):
+        document = Document(
+            title=f"Test Document {i}",
+            type=DocumentType.BUSINESS_PLAN,
+            content=f"Test content {i}",
+            company_id=create_company.id
+        )
+        session.add(document)
+        documents.append(document)
+
+    await session.commit()
+    for doc in documents:
+        await session.refresh(doc)
+    return documents
 
 
+@pytest.fixture
+async def create_section(session: AsyncSession, create_document: Document) -> Section:
+    """Create test section."""
+    section = Section(
+        type=SectionType.EXECUTIVE_SUMMARY,
+        title="Test Section",
+        content="Test section content",
+        order=0,
+        document_id=create_document.id,
+        company_id=create_document.company_id  # company_id 추가
+    )
+    session.add(section)
+    await session.commit()
+    await session.refresh(section)
+    return section
 
+@pytest.fixture
+async def create_document_with_sections(
+        session: AsyncSession,
+        create_company: Company
+) -> Document:
+    """Create test document with multiple sections."""
+    # Create document
+    document = Document(
+        title="Test Document with Sections",
+        type=DocumentType.BUSINESS_PLAN,
+        content="Test content",
+        company_id=create_company.id
+    )
+    session.add(document)
+    await session.commit()
+    await session.refresh(document)
+
+    # Create sections
+    sections = [
+        Section(
+            type=SectionType.EXECUTIVE_SUMMARY,
+            title="Executive Summary",
+            content="Test executive summary",
+            order=0,
+            document_id=document.id,
+            company_id=create_company.id
+        ),
+        Section(
+            type=SectionType.COMPANY_OVERVIEW,
+            title="Company Overview",
+            content="Test company overview",
+            order=1,
+            document_id=document.id,
+            company_id=create_company.id
+        ),
+        Section(
+            type=SectionType.BUSINESS_MODEL,
+            title="Business Model",
+            content="Test business model",
+            order=2,
+            document_id=document.id,
+            company_id=create_company.id
+        )
+    ]
+
+    for section in sections:
+        session.add(section)
+
+    await session.commit()
+    await session.refresh(document)
+    return document
+
+
+async def clear_test_data(session: AsyncSession):
+    """Clear all test data from database."""
+    await session.execute(Section.__table__.delete())
+    await session.execute(Document.__table__.delete())
+    await session.execute(Company.__table__.delete())
+    await session.commit()
+
+@pytest.fixture(autouse=True)
+async def setup_and_teardown(session: AsyncSession):
+    """각 테스트 케이스 실행 전후로 테이블 초기화"""
+    await clear_test_data(session)
+    yield
+    await clear_test_data(session)
