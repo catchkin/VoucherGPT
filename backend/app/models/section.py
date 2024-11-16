@@ -1,32 +1,35 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum as SQLEnum, JSON
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, JSON, DateTime
 from sqlalchemy.orm import relationship
-from enum import Enum
+import enum
 
-from app.models.base import Base
+from app.core.database import Base  # database.py에서 Base 직접 import
 
-class SectionType(str, Enum):
-    EXECUTIVE_SUMMARY = "EXECUTIVE_SUMMARY"
-    COMPANY_OVERVIEW = "COMPANY_OVERVIEW"
-    MARKET_ANALYSIS = "MARKET_ANALYSIS"
-    BUSINESS_MODEL = "BUSINESS_MODEL"
-    FINANCIAL_PLAN = "FINANCIAL_PLAN"
-    TECHNICAL_DESCRIPTION = "TECHNICAL_DESCRIPTION"
-    OTHER = "OTHER"
+class SectionType(str, enum.Enum):
+    """섹션 유형 Enum"""
+    EXECUTIVE_SUMMARY = "executive_summary"
+    COMPANY_OVERVIEW = "company_overview"
+    MARKET_ANALYSIS = "market_analysis"
+    BUSINESS_MODEL = "business_model"
+    FINANCIAL_PLAN = "financial_plan"
+    TECHNICAL_DESCRIPTION = "technical_description"
+    OTHER = "other"
 
 class Section(Base):
+    """문서 섹션 모델"""
     __tablename__ = "sections"
 
-    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
-    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
-    type = Column(SQLEnum(SectionType), nullable=False)
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    type = Column(Enum(SectionType), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     content = Column(Text)
     order = Column(Integer, default=0)
     meta_data = Column(JSON)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
     document = relationship("Document", back_populates="sections")
     company = relationship("Company", back_populates="sections")
-
-    def __repr__(self):
-        return f"<Section(title={self.title}, type={self.type})>"
