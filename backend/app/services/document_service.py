@@ -19,6 +19,13 @@ from app.models.section import SectionType
 from app.schemas.document import DocumentCreate, Document
 from app.schemas.section import SectionCreate
 
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
 class SectionData(TypedDict):
     type: SectionType
     title: str
@@ -452,5 +459,193 @@ class DocumentService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error during document processing: {str(e)}"
             )
+
+    async def search_relevant_documents(
+        self,
+        db: AsyncSession,
+        company_id: int,
+        query: str
+    ) -> List[Document]:
+        """관련 문서 검색"""
+        # 1. 회사 관련 문서
+        company_docs = await crud_document.get_by_company(db, company_id=company_id)
+
+        # 2. 학습용 문서 검색
+        training_docs = await crud_document.get_by_type(
+            db,
+            doc_type=DocumentType.TRAINING_DATA
+        )
+
+        # 3. 연관성 점수 계산 및 필터링
+        relevant_docs = self._filter_relevant_documents(
+            query,
+            company_docs + training_docs
+        )
+
+        return relevant_docs
+
+    async def _filter_relevant_documents(
+        self,
+        query: str,
+        documents: List[Document],
+        threshold: float = 0.2, # 최소 연관성 점수
+        max_documents: int = 5  # 최대 반환 문서 수
+    ) -> List[Document]:
+        """
+        검색어와 문서들의 연관성을 평가하여 가장 관련성 높은 문서들을 반환
+
+        Args:
+             query: 검색어 또는 사용자 질문
+             documents: 검색 대상 문서 리스트
+             threshold: 최소 연관성 점수 (0~1)
+             max_documents: 최대 반환 문서 수
+
+        Returns:
+            관련성 높은 문서 리스트
+        """
+        try:
+            # 1. GPT 임베딩을 사용하여 검색어 벡터화
+            query_embedding = await self._get_embedding(query)
+
+            # 2. 각 문서의 연관성 점수 계산
+            scored_documents = []
+            for doc in documents:
+                # 2.1 문서 내용에서 주요 부분 추출
+                doc_content = self._extract_searchable_content(doc)
+
+                # 2.2 문서 내용 임베딩
+                doc_embedding = await self._get_embedding(doc_content)
+
+                # 2.3 코사인 유사도 계산
+                similarity = self._calculate_cosine_similarity(
+                    query_embedding,
+                    doc_embedding
+                )
+
+                # 2.4 추가 관련성 점수 계산 (문서 타입, 날짜 등 고려)
+                relevance_score = self._calculate_relevance_score(
+                    similarity,
+                    doc
+                )
+
+                if relevance_score >= threshold:
+                    scored_documents.append((doc, relevance_score))
+
+            # 3. 점수순 정렬 및 상위 문서 선택
+            scored_documents.sort(key=lambda x: x[1], reverse=True)
+            return [doc for doc, score in scored_documents[:max_documents]]
+
+        except Exception as e:
+            logger.error(f"Error in filtering relevant documents: {str(e)}")
+            # 오류 발생 시 기본 문서 반환
+            return documents[:max_documents]
+
+    async def _get_embedding(self, text: str) -> List[float]:
+        """텍스트의 임베딩 벡터 생성"""
+        try:
+            response = await self.client.embeddings.create(
+                model="text-embedding-ada-002",
+                input=text
+            )
+            return response.data[0].embedding
+
+        except Exception as e:
+            logger.error(f"Error getting embedding: {str(e)}")
+            raise
+
+    def _extract_searchable_content(self, doc: Document) -> str:
+        """문서에서 검색 가능한 주요 내용 추출"""
+        # 문서 타입별 중요 섹션 추출
+        content_parts = []
+
+        # 제목 추가
+        if doc.title:
+            content_parts.append(doc.title)
+
+        # 문서 타입별 처리
+        if doc.type == DocumentType.BUSINESS_PLAN:
+            # 사업계획서의 경우 주요 섹션 우선
+            for section in doc.sections:
+                if section.type in [
+                    SectionType.EXECUTIVE_SUMMARY,
+                    SectionType.MARKET_ANALYSIS,
+                    SectionType.BUSINESS_MODEL
+                ]:
+                    content_parts.append(section.content)
+
+        else:
+            # 기타 문서는 전체 내용 사용
+            if doc.content:
+                content_parts.append(doc.content)
+
+        # 최대 텍스트 길이 제한 (토큰 수 고려)
+        combined_content = " ".join(content_parts)
+        return combined_content[:8000]  # GPT 임베딩 모델 제한 고려
+
+    def _calculate_cosine_similarity(
+        self,
+        vec1: List[float],
+        vec2: List[float]
+    ) -> float:
+        """ 두 벡터 간의 코사인 유사도 계산"""
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        norm1 = sum(a * a for a in vec1) ** 0.5
+        norm2 = sum(b * b for b in vec2) ** 0.5
+        return dot_product / (norm1 * norm2) if norm1 * norm2 != 0 else 0
+
+    def _calculate_relevance_score(
+        self,
+        similarity: float,
+        doc: Document,
+        base_weight: float = 0.7,
+        type_weight: float = 0.2,
+        date_weight: float = 0.1
+    ) -> float:
+        """
+        최종 관련성 점수 계산
+        - 코사인 유사도
+        - 문서 타입 가중치
+        - 최신성 가중치
+        """
+        # 1. 기본 유사도 점수
+        score = similarity * base_weight
+
+        # 2. 문서 타입 가중치
+        type_score = self._get_document_type_score(doc.type)
+        score += type_score * type_weight
+
+        # 3. 최신성 가중치
+        date_score = self._get_date_score(doc.created_at)
+        score += date_score * date_weight
+
+        return score
+
+    def _get_document_type_score(self, doc_type: DocumentType) -> float:
+        """문서 타입별 가중치 정의"""
+        type_weights = {
+            DocumentType.BUSINESS_PLAN: 1.0,  # 사업계획서 최우선
+            DocumentType.COMPANY_PROFILE: 0.8,  # 회사 소개서 차순위
+            DocumentType.TRAINING_DATA: 0.7,  # 학습 데이터
+            DocumentType.FINANCIAL_REPORT: 0.6,  # 재무 보고서
+            DocumentType.OTHER: 0.5  # 기타 문서
+        }
+        return type_weights.get(doc_type, 0.5)
+
+    def _get_date_score(self, created_at: datetime) -> float:
+        """문서 생성일자 기반 최신성 점수 계산"""
+        now = datetime.utcnow()
+        days_old = (now - created_at).days
+
+        if days_old <= 30:  # 1개월 이내
+            return 1.0
+        elif days_old <= 90:  # 3개월 이내
+            return 0.8
+        elif days_old <= 180:  # 6개월 이내
+            return 0.6
+        elif days_old <= 365:  # 1년 이내
+            return 0.4
+        else:
+            return 0.2
+
 
 document_service = DocumentService()

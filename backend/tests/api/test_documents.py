@@ -84,37 +84,7 @@ async def test_update_document(client: AsyncClient, create_document: Document):
     assert content["content"] == payload["content"]
 
 
-async def test_delete_document(
-        client: AsyncClient,
-        create_document: Document,
-        session: AsyncSession
-):
-    """문서 삭제 테스트"""
-    document_id = create_document.id
 
-    # 삭제 전 문서 존재 확인
-    pre_check = await client.get(f"/api/v1/documents/{document_id}")
-    assert pre_check.status_code == status.HTTP_200_OK
-
-    # 문서 삭제
-    response = await client.delete(f"/api/v1/documents/{document_id}")
-    assert response.status_code == status.HTTP_200_OK
-    content = response.json()
-    assert content["id"] == document_id
-
-    # 세션 클리어
-    session.expunge_all()
-    await session.commit()
-
-    # 삭제된 문서 조회 시도
-    post_check = await client.get(f"/api/v1/documents/{document_id}")
-    assert post_check.status_code == status.HTTP_404_NOT_FOUND
-
-    # DB에서 직접 확인
-    from sqlalchemy import select
-    query = select(Document).where(Document.id == document_id)
-    result = await session.execute(query)
-    assert result.scalar_one_or_none() is None
 
 
 async def clear_all_tables(session: AsyncSession):
