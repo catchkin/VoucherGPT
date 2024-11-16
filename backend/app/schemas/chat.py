@@ -14,6 +14,12 @@ class ChatHistoryCreate(ChatHistoryBase):
     """채팅 이력 생성 스키마"""
     company_id: int
 
+class ChatHistoryUpdate(ChatHistoryBase):
+    """채팅 이력 수정 스키마"""
+    query: Optional[str] = Field(None, min_length=1)
+    response: Optional[str] = Field(None, min_length=1)
+    is_bookmarked: Optional[bool] = None
+
 class ChatHistoryInDB(ChatHistoryBase):
     """채팅 이력 DB 응답 스키마"""
     id: int

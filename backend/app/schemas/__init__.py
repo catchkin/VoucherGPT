@@ -24,6 +24,7 @@ from .section import (
 from .chat import (
     ChatHistoryBase,
     ChatHistoryCreate,
+    ChatHistoryUpdate,
     ChatHistoryInDB,
     ChatReferenceBase,
     ChatReferenceCreate,
@@ -59,6 +60,7 @@ __all__ = [
     # Chat schemas
     'ChatHistoryBase',
     'ChatHistoryCreate',
+    'ChatHistoryUpdate',
     'ChatHistoryInDB',
     'ChatReferenceBase',
     'ChatReferenceCreate',
