@@ -1,46 +1,38 @@
-from typing import Optional, List, TYPE_CHECKING, Annotated
+from datetime import datetime
+from typing import Optional
 from enum import Enum
-from pydantic import Field, ConfigDict
-from .base import BaseSchema, BaseResponseSchema
+from pydantic import Field
 
-if TYPE_CHECKING:
-    from .section import Section
+from .base import BaseSchema
 
 class DocumentType(str, Enum):
+    """문서 유형 Enum"""
     BUSINESS_PLAN = "business_plan"
     COMPANY_PROFILE = "company_profile"
-    FINANCIAL_REPORT = "financial_report"
+    PRODUCT_CATALOG = "product_catalog"
     TRAINING_DATA = "training_data"
-    OTHER = "other"
 
 class DocumentBase(BaseSchema):
-    """Base schema for Document"""
-    title: str = Field(..., min_length=1, max_length=255)
+    """문서 기본 스키마"""
+    title: str = Field(..., max_length=255)
     type: DocumentType
     content: Optional[str] = None
-    file_path: Optional[str] = Field(None, max_length=512)
     file_name: Optional[str] = Field(None, max_length=255)
     mime_type: Optional[str] = Field(None, max_length=100)
-    company_id: Optional[int] = None
+    doc_metadata: Optional[dict] = Field(default_factory=dict)
 
 class DocumentCreate(DocumentBase):
-    """Schema for creating a new document"""
-    pass
+    """문서 생성 스키마"""
+    company_id: int = Field(..., description="회사 ID")
 
 class DocumentUpdate(DocumentBase):
-    """Schema for updating a document"""
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    """문서 수정 스키마"""
+    title: Optional[str] = Field(None, max_length=255)
     type: Optional[DocumentType] = None
-    content: Optional[str] = None
-    company_id: Optional[int] = None
 
-class Document(DocumentBase, BaseResponseSchema):
-    """Schema for returning Document data"""
-    model_config = ConfigDict(from_attributes=True)
-
-class DocumentWithSections(Document):
-    """Schema for returning Document with related data"""
-    sections: List["Section"] = Field(default_factory=list)
-
-from .section import Section
-DocumentWithSections.model_rebuild()
+class DocumentInDB(DocumentBase):
+    """문서 DB 응답 스키마"""
+    id: int
+    company_id: int
+    created_at: datetime
+    updated_at: datetime

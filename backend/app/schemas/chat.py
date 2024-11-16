@@ -1,37 +1,55 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import Optional, List
+from pydantic import Field, confloat
 
-class ChatRequest(BaseModel):
-    query: str
-    context_documents: Optional[List[int]] = None # 참조할 문서 ID 리스트
+from .base import BaseSchema
 
-class ChatResponse(BaseModel):
+class ChatHistoryBase(BaseSchema):
+    """채팅 이력 기본 스키마"""
+    query: str = Field(..., min_length=1)
+    response: str = Field(..., min_length=1)
+    is_bookmarked: Optional[bool] = False
+
+class ChatHistoryCreate(ChatHistoryBase):
+    """채팅 이력 생성 스키마"""
     company_id: int
-    query: str
-    response: str
-    chat_id: int
-    created_at: datetime
-    document_references: List[DocumentReference]
 
-class ChatHistory(BaseModel):
+class ChatHistoryInDB(ChatHistoryBase):
+    """채팅 이력 DB 응답 스키마"""
     id: int
     company_id: int
-    query: str
-    response: str
     created_at: datetime
-    feedback: Optional[ChatFeedback] = None
-    is_bookmarked: bool = False
 
-class ChatFeedback(BaseModel):
-    rating: int
+class ChatReferenceBase(BaseSchema):
+    """채팅 참조 기본 스키마"""
+    is_auto_referenced: bool = True
+    relevance_score: Optional[confloat(ge=0, le=1)] = Field(None, description="관련성 점수 (0-1)")
+
+class ChatReferenceCreate(ChatReferenceBase):
+    """채팅 참조 생성 스키마"""
+    chat_id: int
+    document_id: int
+
+class ChatReferenceInDB(ChatReferenceBase):
+    """채팅 참조 DB 응답 스키마"""
+    id: int
+    chat_id: int
+    document_id: int
+    created_at: datetime
+
+class ChatFeedbackBase(BaseSchema):
+    """채팅 피드백 기본 스키마"""
+    rating: Optional[int] = Field(None, ge=1, le=5)
     comment: Optional[str] = None
-    is_accurate: bool
+    is_accurate: Optional[bool] = None
     needs_improvement: Optional[str] = None
 
-class DocumentReference(BaseModel):
-    document_id: int
-    document_type: str
-    title: str
-    relevance_score: float
-    referenced_content: str
+class ChatFeedbackCreate(ChatFeedbackBase):
+    """채팅 피드백 생성 스키마"""
+    chat_id: int
+
+class ChatFeedbackInDB(ChatFeedbackBase):
+    """채팅 피드백 DB 응답 스키마"""
+    id: int
+    chat_id: int
+    created_at: datetime

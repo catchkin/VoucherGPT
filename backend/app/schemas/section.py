@@ -1,9 +1,12 @@
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Optional
 from enum import Enum
 from pydantic import Field
-from .base import BaseSchema, BaseResponseSchema
+
+from .base import BaseSchema
 
 class SectionType(str, Enum):
+    """섹션 유형 Enum"""
     EXECUTIVE_SUMMARY = "executive_summary"
     COMPANY_OVERVIEW = "company_overview"
     MARKET_ANALYSIS = "market_analysis"
@@ -13,27 +16,27 @@ class SectionType(str, Enum):
     OTHER = "other"
 
 class SectionBase(BaseSchema):
-    """Base schema for Section"""
+    """섹션 기본 스키마"""
     type: SectionType
-    title: str = Field(..., min_length=1, max_length=255)
+    title: str = Field(..., max_length=255)
     content: Optional[str] = None
-    order: int = Field(0, ge=0)
-    meta_data: Optional[Dict[str, Any]] = None
-    document_id: Optional[int] = None
-    company_id: Optional[int] = None
+    order: Optional[int] = Field(default=0, ge=0)
+    meta_data: Optional[dict] = Field(default_factory=dict)
 
 class SectionCreate(SectionBase):
-    """Schema for creating a new section"""
+    """섹션 생성 스키마"""
     document_id: int
     company_id: int
 
 class SectionUpdate(SectionBase):
-    """Schema for updating a section"""
+    """섹션 수정 스키마"""
     type: Optional[SectionType] = None
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    order: Optional[int] = Field(None, ge=0)
-    meta_data: Optional[Dict[str, Any]] = None
+    title: Optional[str] = Field(None, max_length=255)
 
-class Section(SectionBase, BaseResponseSchema):
-    """Schema for returning Section data"""
-    pass
+class SectionInDB(SectionBase):
+    """섹션 DB 응답 스키마"""
+    id: int
+    document_id: int
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
