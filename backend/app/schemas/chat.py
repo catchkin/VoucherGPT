@@ -36,6 +36,11 @@ class ChatReferenceCreate(ChatReferenceBase):
     chat_id: int
     document_id: int
 
+class ChatReferenceUpdate(ChatReferenceBase):
+    """채팅 참조 수정 스키마"""
+    is_auto_referenced: Optional[bool] = None
+    relevance_score: Optional[confloat(ge=0, le=1)] = None
+
 class ChatReferenceInDB(ChatReferenceBase):
     """채팅 참조 DB 응답 스키마"""
     id: int
@@ -53,6 +58,13 @@ class ChatFeedbackBase(BaseSchema):
 class ChatFeedbackCreate(ChatFeedbackBase):
     """채팅 피드백 생성 스키마"""
     chat_id: int
+
+class ChatFeedbackUpdate(ChatFeedbackBase):
+    """채팅 피드백 수정 스키마"""
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    comment: Optional[str] = None
+    is_accurate: Optional[bool] = None
+    needs_improvement: Optional[str] = None
 
 class ChatFeedbackInDB(ChatFeedbackBase):
     """채팅 피드백 DB 응답 스키마"""

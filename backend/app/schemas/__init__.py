@@ -28,9 +28,11 @@ from .chat import (
     ChatHistoryInDB,
     ChatReferenceBase,
     ChatReferenceCreate,
+    ChatReferenceUpdate,
     ChatReferenceInDB,
     ChatFeedbackBase,
     ChatFeedbackCreate,
+    ChatFeedbackUpdate,
     ChatFeedbackInDB
 )
 
@@ -64,8 +66,10 @@ __all__ = [
     'ChatHistoryInDB',
     'ChatReferenceBase',
     'ChatReferenceCreate',
+    'ChatReferenceUpdate',
     'ChatReferenceInDB',
     'ChatFeedbackBase',
     'ChatFeedbackCreate',
+    'ChatFeedbackUpdate',
     'ChatFeedbackInDB'
 ]
