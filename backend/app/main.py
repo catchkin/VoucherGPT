@@ -7,7 +7,7 @@ import uvicorn
 import os
 
 from app.core.config import settings
-from app.api.endpoints import companies, documents, sections
+#from app.api.endpoints import companies, documents, sections
 
 # 업로드 디렉토리 생성
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -36,21 +36,21 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # API 라우터 등록
-app.include_router(
-    companies.router,
-    prefix=f"{settings.API_V1_STR}/companies",
-    tags=["companies"]
-)
-app.include_router(
-    documents.router,
-    prefix=f"{settings.API_V1_STR}/documents",
-    tags=["documents"]
-)
-app.include_router(
-    sections.router,
-    prefix=f"{settings.API_V1_STR}/sections",
-    tags=["sections"]
-)
+#app.include_router(
+#    companies.router,
+#    prefix=f"{settings.API_V1_STR}/companies",
+#    tags=["companies"]
+#)
+#app.include_router(
+#    documents.router,
+#    prefix=f"{settings.API_V1_STR}/documents",
+#    tags=["documents"]
+#)
+#app.include_router(
+#    sections.router,
+#    prefix=f"{settings.API_V1_STR}/sections",
+#    tags=["sections"]
+#)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):

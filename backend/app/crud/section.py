@@ -1,53 +1,53 @@
-from typing import List, Optional
+from typing import List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.models.section import Section
+from app.models.section import Section, SectionType
 from app.schemas.section import SectionCreate, SectionUpdate
 from .base import CRUDBase
-from .document import document
-
 
 class CRUDSection(CRUDBase[Section, SectionCreate, SectionUpdate]):
     async def get_by_document(
-        self, db: AsyncSession, *, document_id: int, skip: int = 0, limit: int = 100
+        self, db: AsyncSession, *, document_id: int
     ) -> List[Section]:
-        """Get sections for a specific document."""
-        query = (
-            select(self.model)
-            .where(self.model.document_id == document_id)
+        """문서별 섹션 목록 조회"""
+        query = select(self.model)\
+            .where(self.model.document_id == document_id)\
             .order_by(self.model.order)
-            .offset(skip)
-            .limit(limit)
-        )
         result = await db.execute(query)
         return result.scalars().all()
 
     async def get_by_type(
-        self, db: AsyncSession, *, section_type: str, skip: int = 0, limit: int = 100
+        self, db: AsyncSession, *, section_type: SectionType
     ) -> List[Section]:
-        """Get sections of a specific type."""
-        query = (
-            select(self.model)
-            .where(self.model.type == section_type)
-            .offset(skip)
-            .limit(limit)
-        )
+        """섹션 유형별 조회"""
+        query = select(self.model)\
+            .where(self.model.type == section_type)\
+            .order_by(self.model.order)
         result = await db.execute(query)
         return result.scalars().all()
 
     async def reorder_sections(
         self, db: AsyncSession, *, document_id: int, section_orders: dict[int, int]
     ) -> List[Section]:
-        """Reorder sections in a document."""
-        sections = await self.get_by_document(db, document_id=document_id)
+        """섹션 순서 재정렬"""
+        sections = await self.get_by_document(db=db, document_id=document_id)
         for section in sections:
             if section.id in section_orders:
                 section.order = section_orders[section.id]
                 db.add(section)
-        await db.commit()
-        return await self.get_by_document(db, document_id=document_id)
 
-# Create crud_section instance
+        await db.commit()
+        return sections
+
+    async def get_by_company(
+        self, db: AsyncSession, *, company_id: int
+    ) -> List[Section]:
+        """기업별 모든 섹션 조회"""
+        query = select(self.model) \
+            .where(self.model.company_id == company_id) \
+            .order_by(self.model.document_id, self.model.order)
+        result = await db.execute(query)
+        return result.scalars().all()
+
 section = CRUDSection(Section)

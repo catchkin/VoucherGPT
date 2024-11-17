@@ -1,6 +1,60 @@
-# tests/conftest.py
+import asyncio
+from typing import AsyncGenerator, Generator
 import pytest
-from typing import Generator
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from fastapi.testclient import TestClient
+
+from app.core.config import settings
+from app.core.database import Base
+from app.main import app
+
+# 테스트용 데이터베이스 URL 설정
+TEST_SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://vouchergpt_user:blogcodi0318@localhost:5432/vouchergpt_test"
+
+# 테스트용 엔진 생성
+test_engine = create_async_engine(
+    TEST_SQLALCHEMY_DATABASE_URL,
+    echo=False,  # 테스트 시 SQL 로그 비활성화
+)
+
+# 테스트용 세션 팩토리
+TestingSessionLocal = sessionmaker(
+    test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """이벤트 루프 픽스처"""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.fixture(scope="function")
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """테스트용 데이터베이스 세션"""
+    async with test_engine.begin() as conn:
+        # 각 테스트 전에 모든 테이블을 새로 생성
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with TestingSessionLocal() as session:
+        yield session
+        # 세션 롤백
+        await session.rollback()
+        # 세션 종료
+        await session.close()
+
+@pytest.fixture(scope="function")
+def client() -> Generator:
+    """FastAPI 테스트 클라이언트"""
+    with TestClient(app) as c:
+        yield c
+
+
+
 
 # 테스트에 필요한 기본 데이터를 제공하는 fixture들만 정의
 @pytest.fixture(scope="module")
