@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Callable
+from typing import AsyncGenerator, Callable, Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import functools
@@ -6,22 +6,37 @@ import functools
 from app.core.database import AsyncSessionLocal
 from app.core.config import settings
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    데이터베이스 세션 의존성
-    FastAPI 엔드포인트에서 데이터베이스 세션을 주입받을 때 사용
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+class DatabaseDependency:
+    """데이터베이스 세션 관리를 위한 의존성 클래스"""
+
+    @staticmethod
+    async def get_db() -> AsyncGenerator[AsyncSession, None]:
+        """데이터베이스 세션 의존성"""
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+            finally:
+                await session.close()
+
+class CommonQueryParams:
+    """공통 쿼리 파라미터"""
+    def __init__(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        sort_by: Optional[str] = None,
+        order: Optional[str] = "asc"
+    ):
+        self.skip = skip
+        self.limit = min(limit, 100)
+        self.sort_by = sort_by
+        self.order = order.lower() if order else "asc"
+
+        if self.order not in ["asc", "desc"]:
+            self.order = "asc"
 
 def handle_exceptions() -> Callable:
-    """
-    공통 예외 처리를 위한 데코레이터.
-    데이터베이스 오류 등을 적절한 HTTP 응답으로 변환.
-    """
+    """공통 예외 처리를 위한 데코레이터"""
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -32,51 +47,43 @@ def handle_exceptions() -> Callable:
                 if "duplicate key" in str(e).lower():
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="Resource already exists"
+                        detail="리소스가 이미 존재합니다"
                     )
                 # 데이터 무결성 예외
                 if "foreign key" in str(e).lower():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Invalid reference to related resource"
+                        detail="참조하는 리소스가 존재하지 않습니다"
+                    )
+                # 파일 처리 예와
+                if "file" in str(e).lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="파일 처리 중 오류가 발생했습니다"
                     )
                 # 기타 예외는 서버 에러로 처리
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Internal server error"
+                    detail="서버 오류가 발생했습니다"
                 )
         return wrapper
     return decorator
 
-async def validate_file_size(file_size: int) -> None:
-    """
-    파일 크기 검증 유틸리티.
-    설정된 최대 파일 크기를 초과하는 경우 예외 발생.
-    """
-    if file_size > settings.MAX_UPLOAD_SIZE:
+async def validate_company(
+    company_id: int,
+    db: AsyncSession = Depends(DatabaseDependency.get_db)
+) -> None:
+    """회사 ID 유효성 검증 유틸리티"""
+    from app.models import Company
+    company = await db.get(Company, company_id)
+    if not company:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds maximum limit of {settings.MAX_UPLOAD_SIZE} bytes"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="회사를 찾을 수 없습니다"
         )
 
-async def validate_mime_type(mime_type: str) -> None:
-    """
-    파일 MIME 타입 검증 유틸리티.
-    허용되지 않는 파일 형식인 경우 예외 발생.
-    """
-    allowed_types = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'
-    ]
-    if mime_type not in allowed_types:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported file type. Allowed types: {', '.join(allowed_types)}"
-        )
-
-# 공통적으로 사용될 기본 의존성
+# 자주 사용되는 의존성 조합
 CommonDeps = {
-    "db": Depends(get_db),
+    "db": Depends(DatabaseDependency.get_db),
+    "commons": Depends(CommonQueryParams),
 }
