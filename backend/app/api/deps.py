@@ -1,13 +1,12 @@
 from typing import AsyncGenerator, Callable, Optional
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import functools
 
-from sqlalchemy import select
-
 from app.core.database import AsyncSessionLocal
 from app.core.config import settings
-from app.models import Company
+from app.models import Company, Document
 
 class DatabaseDependency:
     """데이터베이스 세션 관리를 위한 의존성 클래스"""
@@ -37,6 +36,80 @@ class CommonQueryParams:
 
         if self.order not in ["asc", "desc"]:
             self.order = "asc"
+
+async def validate_company(
+    company_id: int,
+    db: AsyncSession = Depends(DatabaseDependency.get_db)
+) -> None:
+    """회사 ID 유효성 검증
+
+    Args:
+        company_id: 검증할 회사 ID
+        db: 데이터베이스 세션
+
+    Raises:
+        HTTPException: 회사가 존재하지 않는 경우
+    """
+    query = select(Company).where(Company.id == company_id)
+    result = await db.execute(query)
+    company = result.scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"회사 ID {company_id}를 찾을 수 없습니다"
+        )
+
+async def validate_document(
+    document_id: int,
+    db: AsyncSession = Depends(DatabaseDependency.get_db)
+) -> None:
+    """문서 ID 유효성 검증
+
+    Args:
+        document_id: 검증할 문서 ID
+        db: 데이터베이스 세션
+
+    Raises:
+        HTTPException: 문서가 존재하지 않는 경우
+    """
+    query = select(Document).where(Document.id == document_id)
+    result = await db.execute(query)
+    document = result.scalar_one_or_none()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"문서 ID {document_id}를 찾을 수 없습니다"
+        )
+
+async def validate_document_ownership(
+    document_id: int,
+    company_id: int,
+    db: AsyncSession = Depends(DatabaseDependency.get_db)
+) -> None:
+    """문서 소유권 검증
+
+    Args:
+        document_id: 검증할 문서 ID
+        company_id: 검증할 회사 ID
+        db: 데이터베이스 세션
+
+    Raises:
+        HTTPException: 문서가 존재하지 않거나 해당 회사의 소유가 아닌 경우
+    """
+    query = select(Document).where(
+        Document.id == document_id,
+        Document.company_id == company_id
+    )
+    result = await db.execute(query)
+    document = result.scalar_one_or_none()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="문서를 찾을 수 없거나 접근 권한이 없습니다"
+        )
 
 async def validate_file_type(content_type: str) -> None:
     """파일 타입 검증
@@ -79,22 +152,7 @@ async def validate_file_size(file_size: int) -> None:
     if file_size > max_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds the limit of {max_size / 1024 / 1024:.1f}MB"
-        )
-
-async def validate_company(
-    company_id: int,
-    db: AsyncSession = Depends(DatabaseDependency.get_db)
-) -> None:
-    """회사 ID 유효성 검증 유틸리티"""
-    query = select(Company).where(Company.id == company_id)
-    result = await db.execute(query)
-    company = result.scalar_one_or_none()
-
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Company with id {company_id} not found"
+            detail=f"파일 크기가 제한({max_size/1024/1024:.1f}MB)을 초과했습니다"
         )
 
 def handle_exceptions() -> Callable:
@@ -132,7 +190,6 @@ def handle_exceptions() -> Callable:
                 )
         return wrapper
     return decorator
-
 
 # 자주 사용되는 의존성 조합
 CommonDeps = {
