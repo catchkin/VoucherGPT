@@ -17,6 +17,17 @@ async def create_company(
     db: AsyncSession = Depends(deps.DatabaseDependency.get_db)
 ):
     """새로운 회사 등록"""
+    # 사업자번호 중복 체크
+    existing_company = await company.get_by_business_number(
+        db=db,
+        business_number=company_in.business_number
+    )
+    if existing_company:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Business number already registered"
+        )
+
     return await company.create(db, obj_in=company_in)
 
 @router.get("/", response_model=List[CompanyInDB])

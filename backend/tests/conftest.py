@@ -4,9 +4,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.core.config import settings
-from app.core.database import Base
+from app.core.database import Base, get_async_db
 from app.main import app
 
 # 테스트용 데이터베이스 URL 설정
@@ -53,7 +54,23 @@ def client() -> Generator:
     with TestClient(app) as c:
         yield c
 
+@pytest.fixture
+async def async_client() -> AsyncGenerator[AsyncClient, None]:
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
 
+@pytest.fixture(scope="function")
+async def override_get_db(db_session: AsyncSession):
+    """DB 의존성 오버라이드"""
+    async def get_test_db():
+        try:
+            yield db_session
+        finally:
+            await db_session.close()
+
+    app.dependency_overrides[get_async_db] = get_test_db  # database.py의 get_async_db 사용
+    yield
+    app.dependency_overrides.clear()
 
 
 # 테스트에 필요한 기본 데이터를 제공하는 fixture들만 정의
